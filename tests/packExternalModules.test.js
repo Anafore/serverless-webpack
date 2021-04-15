@@ -20,19 +20,19 @@ chai.use(require('sinon-chai'));
 
 const expect = chai.expect;
 
-class ChunkMock {
-  constructor(modules) {
-    this._modules = modules;
-  }
-
-  get modulesIterable() {
-    return this._modules;
+class WebpackModuleGraphMock {
+  getIssuer(module) {
+    return module.issuer;
   }
 }
 
-class ChunkMockNoModulesIterable {
+class WebpackCompilationMock {
   constructor(modules) {
-    this._modules = modules;
+    this.moduleGraph = new WebpackModuleGraphMock();
+    this.modules = modules;
+    this.compiler = {
+      outputPath: '/my/Service/Path/.webpack/service'
+    };
   }
 }
 
@@ -40,7 +40,7 @@ const packagerMockFactory = {
   create(sandbox) {
     const packagerMock = {
       lockfileName: 'mocked-lock.json',
-      copyPackageSectionNames: ['section1', 'section2'],
+      copyPackageSectionNames: [ 'section1', 'section2' ],
       mustCopyModules: true,
       rebaseLockfile: sandbox.stub(),
       getProdDependencies: sandbox.stub(),
@@ -107,17 +107,20 @@ describe('packExternalModules', () => {
     readFileSyncStub = sandbox.stub(serverless.utils, 'readFileSync');
     _.set(serverless, 'service.custom.webpackIncludeModules', true);
 
-    module = _.assign({
-      serverless,
-      options: {
-        verbose: true
+    module = _.assign(
+      {
+        serverless,
+        options: {
+          verbose: true
+        },
+        configuration: new Configuration({
+          webpack: {
+            includeModules: true
+          }
+        })
       },
-      configuration: new Configuration({
-        webpack: {
-          includeModules: true
-        }
-      })
-    }, baseModule);
+      baseModule
+    );
   });
 
   afterEach(() => {
@@ -134,189 +137,151 @@ describe('packExternalModules', () => {
     const stats = {
       stats: [
         {
-          compilation: {
-            chunks: [
-              new ChunkMock([
-                {
-                  identifier: _.constant('"crypto"')
-                },
-                {
-                  identifier: _.constant('"uuid/v4"')
-                },
-                {
-                  identifier: _.constant('"mockery"')
-                },
-                {
-                  identifier: _.constant('"@scoped/vendor/module1"')
-                },
-                {
-                  identifier: _.constant('external "@scoped/vendor/module2"')
-                },
-                {
-                  identifier: _.constant('external "uuid/v4"')
-                },
-                {
-                  identifier: _.constant('external "bluebird"')
-                },
-              ]),
-              new ChunkMockNoModulesIterable([
-
-              ]),
-            ],
-            compiler: {
-              outputPath: '/my/Service/Path/.webpack/service'
+          compilation: new WebpackCompilationMock([
+            {
+              identifier: _.constant('"crypto"')
+            },
+            {
+              identifier: _.constant('"uuid/v4"')
+            },
+            {
+              identifier: _.constant('"mockery"')
+            },
+            {
+              identifier: _.constant('"@scoped/vendor/module1"')
+            },
+            {
+              identifier: _.constant('external "@scoped/vendor/module2"')
+            },
+            {
+              identifier: _.constant('external "uuid/v4"')
+            },
+            {
+              identifier: _.constant('external "bluebird"')
             }
-          }
+          ])
         }
       ]
     };
     const noExtStats = {
       stats: [
         {
-          compilation: {
-            chunks: [
-              new ChunkMock([
-                {
-                  identifier: _.constant('"crypto"')
-                },
-                {
-                  identifier: _.constant('"uuid/v4"')
-                },
-                {
-                  identifier: _.constant('"mockery"')
-                },
-                {
-                  identifier: _.constant('"@scoped/vendor/module1"')
-                },
-              ])
-            ],
-            compiler: {
-              outputPath: '/my/Service/Path/.webpack/service'
+          compilation: new WebpackCompilationMock([
+            {
+              identifier: _.constant('"crypto"')
+            },
+            {
+              identifier: _.constant('"uuid/v4"')
+            },
+            {
+              identifier: _.constant('"mockery"')
+            },
+            {
+              identifier: _.constant('"@scoped/vendor/module1"')
             }
-          }
+          ])
         }
       ]
     };
     const statsWithFileRef = {
       stats: [
         {
-          compilation: {
-            chunks: [
-              new ChunkMock([
-                {
-                  identifier: _.constant('"crypto"')
-                },
-                {
-                  identifier: _.constant('"uuid/v4"')
-                },
-                {
-                  identifier: _.constant('"mockery"')
-                },
-                {
-                  identifier: _.constant('"@scoped/vendor/module1"')
-                },
-                {
-                  identifier: _.constant('external "@scoped/vendor/module2"')
-                },
-                {
-                  identifier: _.constant('external "uuid/v4"')
-                },
-                {
-                  identifier: _.constant('external "localmodule"')
-                },
-                {
-                  identifier: _.constant('external "bluebird"')
-                },
-              ])
-            ],
-            compiler: {
-              outputPath: '/my/Service/Path/.webpack/service'
+          compilation: new WebpackCompilationMock([
+            {
+              identifier: _.constant('"crypto"')
+            },
+            {
+              identifier: _.constant('"uuid/v4"')
+            },
+            {
+              identifier: _.constant('"mockery"')
+            },
+            {
+              identifier: _.constant('"@scoped/vendor/module1"')
+            },
+            {
+              identifier: _.constant('external "@scoped/vendor/module2"')
+            },
+            {
+              identifier: _.constant('external "uuid/v4"')
+            },
+            {
+              identifier: _.constant('external "localmodule"')
+            },
+            {
+              identifier: _.constant('external "bluebird"')
             }
-          }
+          ])
         }
       ]
     };
     const statsWithDevDependency = {
       stats: [
         {
-          compilation: {
-            chunks: [
-              new ChunkMock([
-                {
-                  identifier: _.constant('"crypto"')
-                },
-                {
-                  identifier: _.constant('"uuid/v4"')
-                },
-                {
-                  identifier: _.constant('external "eslint"')
-                },
-                {
-                  identifier: _.constant('"mockery"')
-                },
-                {
-                  identifier: _.constant('"@scoped/vendor/module1"')
-                },
-                {
-                  identifier: _.constant('external "@scoped/vendor/module2"')
-                },
-                {
-                  identifier: _.constant('external "uuid/v4"')
-                },
-                {
-                  identifier: _.constant('external "localmodule"')
-                },
-                {
-                  identifier: _.constant('external "bluebird"')
-                },
-              ])
-            ],
-            compiler: {
-              outputPath: '/my/Service/Path/.webpack/service'
+          compilation: new WebpackCompilationMock([
+            {
+              identifier: _.constant('"crypto"')
+            },
+            {
+              identifier: _.constant('"uuid/v4"')
+            },
+            {
+              identifier: _.constant('external "eslint"')
+            },
+            {
+              identifier: _.constant('"mockery"')
+            },
+            {
+              identifier: _.constant('"@scoped/vendor/module1"')
+            },
+            {
+              identifier: _.constant('external "@scoped/vendor/module2"')
+            },
+            {
+              identifier: _.constant('external "uuid/v4"')
+            },
+            {
+              identifier: _.constant('external "localmodule"')
+            },
+            {
+              identifier: _.constant('external "bluebird"')
             }
-          }
+          ])
         }
       ]
     };
     const statsWithIgnoredDevDependency = {
       stats: [
         {
-          compilation: {
-            chunks: [
-              new ChunkMock([
-                {
-                  identifier: _.constant('"crypto"')
-                },
-                {
-                  identifier: _.constant('"uuid/v4"')
-                },
-                {
-                  identifier: _.constant('"mockery"')
-                },
-                {
-                  identifier: _.constant('"@scoped/vendor/module1"')
-                },
-                {
-                  identifier: _.constant('external "@scoped/vendor/module2"')
-                },
-                {
-                  identifier: _.constant('external "uuid/v4"')
-                },
-                {
-                  identifier: _.constant('external "localmodule"')
-                },
-                {
-                  identifier: _.constant('external "bluebird"')
-                },
-                {
-                  identifier: _.constant('external "aws-sdk"')
-                },
-              ])
-            ],
-            compiler: {
-              outputPath: '/my/Service/Path/.webpack/service'
+          compilation: new WebpackCompilationMock([
+            {
+              identifier: _.constant('"crypto"')
+            },
+            {
+              identifier: _.constant('"uuid/v4"')
+            },
+            {
+              identifier: _.constant('"mockery"')
+            },
+            {
+              identifier: _.constant('"@scoped/vendor/module1"')
+            },
+            {
+              identifier: _.constant('external "@scoped/vendor/module2"')
+            },
+            {
+              identifier: _.constant('external "uuid/v4"')
+            },
+            {
+              identifier: _.constant('external "localmodule"')
+            },
+            {
+              identifier: _.constant('external "bluebird"')
+            },
+            {
+              identifier: _.constant('external "aws-sdk"')
             }
-          }
+          ])
         }
       ]
     };
@@ -324,12 +289,31 @@ describe('packExternalModules', () => {
     it('should do nothing if webpackIncludeModules is not set', () => {
       module.configuration = new Configuration();
       module.compileStats = { stats: [] };
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           expect(fsExtraMock.copy).to.not.have.been.called,
           expect(packagerFactoryMock.get).to.not.have.been.called,
-          expect(writeFileSyncStub).to.not.have.been.called,
-        ]));
+          expect(writeFileSyncStub).to.not.have.been.called
+        ])
+      );
+    });
+
+    it('should do nothing if skipCompile is true', () => {
+      module.configuration = new Configuration({
+        webpack: {
+          includeModules: {
+            packagePath: path.join('locals', 'package.json')
+          }
+        }
+      });
+      module.skipCompile = true;
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
+          expect(fsExtraMock.copy).to.not.have.been.called,
+          expect(packagerFactoryMock.get).to.not.have.been.called,
+          expect(writeFileSyncStub).to.not.have.been.called
+        ])
+      );
     });
 
     it('should copy needed package sections if available', () => {
@@ -385,8 +369,8 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.have.been.calledTwice,
           expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -397,8 +381,9 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should install external modules', () => {
@@ -435,8 +420,8 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.have.been.calledTwice,
           expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -447,8 +432,9 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should rebase file references', () => {
@@ -521,23 +507,28 @@ describe('packExternalModules', () => {
       sandbox.stub(process, 'cwd').returns(path.join('/my/Service/Path'));
       mockery.registerMock(path.join(process.cwd(), 'locals', 'package.json'), packageLocalRefMock);
 
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
-          // The module package JSON and the composite one should have been stored
-          expect(writeFileSyncStub).to.have.been.calledThrice,
-          expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
-          expect(writeFileSyncStub.thirdCall.args[1]).to.equal(JSON.stringify(expectedPackageJSON, null, 2)),
-          // The modules and the lock file should have been copied
-          expect(fsExtraMock.copy).to.have.been.calledTwice,
-          // Lock file rebase should have been called
-          expect(packagerMock.rebaseLockfile).to.have.been.calledOnce,
-          expect(packagerMock.rebaseLockfile).to.have.been.calledWith(sinon.match.any, sinon.match(fakePackageLockJSON)),
-          // npm ls and npm prune should have been called
-          expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
-          expect(packagerMock.install).to.have.been.calledOnce,
-          expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]))
+      return expect(module.packExternalModules())
+        .to.be.fulfilled.then(() =>
+          BbPromise.all([
+            // The module package JSON and the composite one should have been stored
+            expect(writeFileSyncStub).to.have.been.calledThrice,
+            expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
+            expect(writeFileSyncStub.thirdCall.args[1]).to.equal(JSON.stringify(expectedPackageJSON, null, 2)),
+            // The modules and the lock file should have been copied
+            expect(fsExtraMock.copy).to.have.been.calledTwice,
+            // Lock file rebase should have been called
+            expect(packagerMock.rebaseLockfile).to.have.been.calledOnce,
+            expect(packagerMock.rebaseLockfile).to.have.been.calledWith(
+              sinon.match.any,
+              sinon.match(fakePackageLockJSON)
+            ),
+            // npm ls and npm prune should have been called
+            expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
+            expect(packagerMock.install).to.have.been.calledOnce,
+            expect(packagerMock.prune).to.have.been.calledOnce,
+            expect(packagerMock.runScripts).to.have.been.calledOnce
+          ])
+        )
         .finally(() => {
           process.cwd.restore();
         });
@@ -578,8 +569,8 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.have.been.calledTwice,
           expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -590,8 +581,9 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.not.have.been.called,
-          expect(packagerMock.runScripts).to.not.have.been.called,
-        ]));
+          expect(packagerMock.runScripts).to.not.have.been.called
+        ])
+      );
     });
 
     it('should reject if packager install fails', () => {
@@ -603,14 +595,17 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.rejectedWith('npm install failed')
-        .then(() => BbPromise.all([
-          // npm ls and npm install should have been called
-          expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
-          expect(packagerMock.install).to.have.been.calledOnce,
-          expect(packagerMock.prune).to.not.have.been.called,
-          expect(packagerMock.runScripts).to.not.have.been.called,
-        ]));
+      return expect(module.packExternalModules())
+        .to.be.rejectedWith('npm install failed')
+        .then(() =>
+          BbPromise.all([
+            // npm ls and npm install should have been called
+            expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
+            expect(packagerMock.install).to.have.been.calledOnce,
+            expect(packagerMock.prune).to.not.have.been.called,
+            expect(packagerMock.runScripts).to.not.have.been.called
+          ])
+        );
     });
 
     it('should reject if packager returns a critical error', () => {
@@ -619,18 +614,21 @@ describe('packExternalModules', () => {
       fsExtraMock.copy.yields();
       packagerMock.getProdDependencies.callsFake(() => BbPromise.reject(new Error('something went wrong')));
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.rejectedWith('something went wrong')
-        .then(() => BbPromise.all([
-          // The module package JSON and the composite one should have been stored
-          expect(writeFileSyncStub).to.not.have.been.called,
-          // The modules should have been copied
-          expect(fsExtraMock.copy).to.not.have.been.called,
-          // npm ls and npm prune should have been called
-          expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
-          expect(packagerMock.install).to.not.have.been.called,
-          expect(packagerMock.prune).to.not.have.been.called,
-          expect(packagerMock.runScripts).to.not.have.been.called,
-        ]));
+      return expect(module.packExternalModules())
+        .to.be.rejectedWith('something went wrong')
+        .then(() =>
+          BbPromise.all([
+            // The module package JSON and the composite one should have been stored
+            expect(writeFileSyncStub).to.not.have.been.called,
+            // The modules should have been copied
+            expect(fsExtraMock.copy).to.not.have.been.called,
+            // npm ls and npm prune should have been called
+            expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
+            expect(packagerMock.install).to.not.have.been.called,
+            expect(packagerMock.prune).to.not.have.been.called,
+            expect(packagerMock.runScripts).to.not.have.been.called
+          ])
+        );
     });
 
     it('should not install modules if no external modules are reported', () => {
@@ -638,8 +636,8 @@ describe('packExternalModules', () => {
       fsExtraMock.copy.yields();
       packagerMock.getProdDependencies.returns(BbPromise.resolve());
       module.compileStats = noExtStats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.not.have.been.called,
           // The modules should have been copied
@@ -648,31 +646,30 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.not.have.been.called,
           expect(packagerMock.prune).to.not.have.been.called,
-          expect(packagerMock.runScripts).to.not.have.been.called,
-        ]));
+          expect(packagerMock.runScripts).to.not.have.been.called
+        ])
+      );
     });
 
     it('should report ignored packager problems in verbose mode', () => {
       module.webpackOutputPath = 'outputPath';
       fsExtraMock.pathExists.yields(null, false);
       fsExtraMock.copy.yields();
-      packagerMock.getProdDependencies.returns(BbPromise.resolve({
-        problems: [
-          'Problem 1',
-          'Problem 2'
-        ]
-      }));
+      packagerMock.getProdDependencies.returns(
+        BbPromise.resolve({
+          problems: [ 'Problem 1', 'Problem 2' ]
+        })
+      );
       packagerMock.install.returns(BbPromise.resolve());
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => {
-          expect(packagerMock.getProdDependencies).to.have.been.calledOnce;
-          expect(serverless.cli.log).to.have.been.calledWith('=> Problem 1');
-          expect(serverless.cli.log).to.have.been.calledWith('=> Problem 2');
-          return null;
-        });
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() => {
+        expect(packagerMock.getProdDependencies).to.have.been.calledOnce;
+        expect(serverless.cli.log).to.have.been.calledWith('=> Problem 1');
+        expect(serverless.cli.log).to.have.been.calledWith('=> Problem 2');
+        return null;
+      });
     });
 
     it('should install external modules when forced', () => {
@@ -717,8 +714,8 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.have.been.calledTwice,
           expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -729,8 +726,9 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should add forced external modules without version when not in production dependencies', () => {
@@ -775,8 +773,8 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.have.been.calledTwice,
           expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -787,8 +785,9 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should exclude external modules when forced', () => {
@@ -832,8 +831,8 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.have.been.calledTwice,
           expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -844,8 +843,9 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should reject if devDependency is required at runtime', () => {
@@ -857,15 +857,20 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = statsWithDevDependency;
-      return expect(module.packExternalModules()).to.be.rejectedWith('Serverless-webpack dependency error: eslint.')
-        .then(() => BbPromise.all([
-          expect(module.serverless.cli.log).to.have.been.calledWith(sinon.match(/ERROR: Runtime dependency 'eslint' found in devDependencies/)),
-          // npm ls and npm install should have been called
-          expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
-          expect(packagerMock.install).to.not.have.been.called,
-          expect(packagerMock.prune).to.not.have.been.called,
-          expect(packagerMock.runScripts).to.not.have.been.called,
-        ]));
+      return expect(module.packExternalModules())
+        .to.be.rejectedWith('Serverless-webpack dependency error: eslint.')
+        .then(() =>
+          BbPromise.all([
+            expect(module.serverless.cli.log).to.have.been.calledWith(
+              sinon.match(/ERROR: Runtime dependency 'eslint' found in devDependencies/)
+            ),
+            // npm ls and npm install should have been called
+            expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
+            expect(packagerMock.install).to.not.have.been.called,
+            expect(packagerMock.prune).to.not.have.been.called,
+            expect(packagerMock.runScripts).to.not.have.been.called
+          ])
+        );
     });
 
     it('should ignore aws-sdk if set only in devDependencies', () => {
@@ -885,15 +890,18 @@ describe('packExternalModules', () => {
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = statsWithIgnoredDevDependency;
       mockery.registerMock(path.join(process.cwd(), 'ignoreDevDeps', 'package.json'), packageIgnoredDevDepsMock);
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
-          expect(module.serverless.cli.log).to.have.been.calledWith(sinon.match(/INFO: Runtime dependency 'aws-sdk' found in devDependencies/)),
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
+          expect(module.serverless.cli.log).to.have.been.calledWith(
+            sinon.match(/INFO: Runtime dependency 'aws-sdk' found in devDependencies/)
+          ),
           // npm ls and npm install should have been called
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should succeed if devDependency is required at runtime but forcefully excluded', () => {
@@ -912,14 +920,15 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = statsWithDevDependency;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // npm ls and npm install should have been called
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should read package-lock if found', () => {
@@ -959,8 +968,8 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.have.been.calledThrice,
           expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -972,8 +981,9 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should continue if package-lock cannot be read', () => {
@@ -1012,8 +1022,8 @@ describe('packExternalModules', () => {
       packagerMock.prune.returns(BbPromise.resolve());
       packagerMock.runScripts.returns(BbPromise.resolve());
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
+      return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+        BbPromise.all([
           // The module package JSON and the composite one should have been stored
           expect(writeFileSyncStub).to.have.been.calledTwice,
           expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -1024,8 +1034,9 @@ describe('packExternalModules', () => {
           expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
           expect(packagerMock.install).to.have.been.calledOnce,
           expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]));
+          expect(packagerMock.runScripts).to.have.been.calledOnce
+        ])
+      );
     });
 
     it('should skip module copy if demanded by packager', () => {
@@ -1063,54 +1074,246 @@ describe('packExternalModules', () => {
       packagerMock.runScripts.returns(BbPromise.resolve());
       packagerMock.mustCopyModules = false;
       module.compileStats = stats;
-      return expect(module.packExternalModules()).to.be.fulfilled
-        .then(() => BbPromise.all([
-          // The module package JSON and the composite one should have been stored
-          expect(writeFileSyncStub).to.have.been.calledTwice,
-          expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
-          expect(writeFileSyncStub.secondCall.args[1]).to.equal(JSON.stringify(expectedPackageJSON, null, 2)),
-          // The modules should not have been copied
-          expect(fsExtraMock.copy).to.not.have.been.called,
-          // npm ls and npm prune should have been called
-          expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
-          expect(packagerMock.install).to.have.been.calledOnce,
-          expect(packagerMock.prune).to.have.been.calledOnce,
-          expect(packagerMock.runScripts).to.have.been.calledOnce,
-        ]))
+      return expect(module.packExternalModules())
+        .to.be.fulfilled.then(() =>
+          BbPromise.all([
+            // The module package JSON and the composite one should have been stored
+            expect(writeFileSyncStub).to.have.been.calledTwice,
+            expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
+            expect(writeFileSyncStub.secondCall.args[1]).to.equal(JSON.stringify(expectedPackageJSON, null, 2)),
+            // The modules should not have been copied
+            expect(fsExtraMock.copy).to.not.have.been.called,
+            // npm ls and npm prune should have been called
+            expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
+            expect(packagerMock.install).to.have.been.calledOnce,
+            expect(packagerMock.prune).to.have.been.calledOnce,
+            expect(packagerMock.runScripts).to.have.been.calledOnce
+          ])
+        )
         .finally(() => {
           packagerMock.mustCopyModules = true;
         });
     });
 
     describe('peer dependencies', () => {
+      /**
+       * Both "default" & "optinal" behaviors are mostly equal.
+       * The only difference between each scenario is they don't use the same package.json as mock
+       */
+      describe('default behavior', () => {
+        before(() => {
+          const peerDepPackageJson = require('./data/package-peerdeps.json');
+          mockery.deregisterMock(path.join(process.cwd(), 'package.json'));
+          mockery.registerMock(path.join(process.cwd(), 'package.json'), peerDepPackageJson);
+          // Mock request-promise package.json
+          const rpPackageJson = require('./data/rp-package.json');
+          const rpPackagePath = path.join(process.cwd(), 'node_modules', 'request-promise', 'package.json');
+          mockery.registerMock(rpPackagePath, rpPackageJson);
+        });
+
+        after(() => {
+          mockery.deregisterMock(path.join(process.cwd(), 'package.json'));
+          mockery.registerMock(path.join(process.cwd(), 'package.json'), packageMock);
+          const rpPackagePath = path.join(process.cwd(), 'node_modules', 'request-promise', 'package.json');
+          mockery.deregisterMock(rpPackagePath);
+        });
+
+        it('should install external peer dependencies', () => {
+          const expectedCompositePackageJSON = {
+            name: 'test-service',
+            version: '1.0.0',
+            description: 'Packaged externals for test-service',
+            private: true,
+            scripts: {},
+            dependencies: {
+              bluebird: '^3.5.0',
+              'request-promise': '^4.2.1',
+              request: '^2.82.0'
+            }
+          };
+          const expectedPackageJSON = {
+            name: 'test-service',
+            version: '1.0.0',
+            description: 'Packaged externals for test-service',
+            private: true,
+            scripts: {},
+            dependencies: {
+              bluebird: '^3.5.0',
+              'request-promise': '^4.2.1',
+              request: '^2.82.0'
+            }
+          };
+
+          const dependencyGraph = require('./data/npm-ls-peerdeps.json');
+          const peerDepStats = {
+            stats: [
+              {
+                compilation: new WebpackCompilationMock([
+                  {
+                    identifier: _.constant('"crypto"')
+                  },
+                  {
+                    identifier: _.constant('"uuid/v4"')
+                  },
+                  {
+                    identifier: _.constant('"mockery"')
+                  },
+                  {
+                    identifier: _.constant('"@scoped/vendor/module1"')
+                  },
+                  {
+                    identifier: _.constant('external "bluebird"')
+                  },
+                  {
+                    identifier: _.constant('external "request-promise"')
+                  }
+                ])
+              }
+            ]
+          };
+
+          module.webpackOutputPath = 'outputPath';
+          fsExtraMock.pathExists.yields(null, false);
+          fsExtraMock.copy.yields();
+          packagerMock.getProdDependencies.returns(BbPromise.resolve(dependencyGraph));
+          packagerMock.install.returns(BbPromise.resolve());
+          packagerMock.prune.returns(BbPromise.resolve());
+          packagerMock.runScripts.returns(BbPromise.resolve());
+          module.compileStats = peerDepStats;
+          return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+            BbPromise.all([
+              // The module package JSON and the composite one should have been stored
+              expect(writeFileSyncStub).to.have.been.calledTwice,
+              expect(writeFileSyncStub.firstCall.args[1]).to.equal(
+                JSON.stringify(expectedCompositePackageJSON, null, 2)
+              ),
+              expect(writeFileSyncStub.secondCall.args[1]).to.equal(JSON.stringify(expectedPackageJSON, null, 2)),
+              // The modules should have been copied
+              expect(fsExtraMock.copy).to.have.been.calledOnce,
+              // npm ls and npm prune should have been called
+              expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
+              expect(packagerMock.install).to.have.been.calledOnce,
+              expect(packagerMock.prune).to.have.been.calledOnce,
+              expect(packagerMock.runScripts).to.have.been.calledOnce
+            ])
+          );
+        });
+      });
+
+      describe('optional behavior', () => {
+        before(() => {
+          const peerDepPackageJson = require('./data/package-peerdeps.json');
+          mockery.deregisterMock(path.join(process.cwd(), 'package.json'));
+          mockery.registerMock(path.join(process.cwd(), 'package.json'), peerDepPackageJson);
+          // Mock request-promise package.json
+          const rpPackageJson = require('./data/rp-package-optional.json');
+          const rpPackagePath = path.join(process.cwd(), 'node_modules', 'request-promise', 'package.json');
+          mockery.registerMock(rpPackagePath, rpPackageJson);
+        });
+
+        after(() => {
+          mockery.deregisterMock(path.join(process.cwd(), 'package.json'));
+          mockery.registerMock(path.join(process.cwd(), 'package.json'), packageMock);
+          const rpPackagePath = path.join(process.cwd(), 'node_modules', 'request-promise', 'package.json');
+          mockery.deregisterMock(rpPackagePath);
+        });
+
+        it('should skip optional peer dependencies', () => {
+          const expectedCompositePackageJSON = {
+            name: 'test-service',
+            version: '1.0.0',
+            description: 'Packaged externals for test-service',
+            private: true,
+            scripts: {},
+            dependencies: {
+              bluebird: '^3.5.0',
+              'request-promise': '^4.2.1',
+              request: '^2.82.0'
+            }
+          };
+          const expectedPackageJSON = {
+            name: 'test-service',
+            version: '1.0.0',
+            description: 'Packaged externals for test-service',
+            private: true,
+            scripts: {},
+            dependencies: {
+              bluebird: '^3.5.0',
+              'request-promise': '^4.2.1',
+              request: '^2.82.0'
+            }
+          };
+
+          const dependencyGraph = require('./data/npm-ls-peerdeps.json');
+          const peerDepStats = {
+            stats: [
+              {
+                compilation: new WebpackCompilationMock([
+                  {
+                    identifier: _.constant('"crypto"')
+                  },
+                  {
+                    identifier: _.constant('"uuid/v4"')
+                  },
+                  {
+                    identifier: _.constant('"mockery"')
+                  },
+                  {
+                    identifier: _.constant('"@scoped/vendor/module1"')
+                  },
+                  {
+                    identifier: _.constant('external "bluebird"')
+                  },
+                  {
+                    identifier: _.constant('external "request-promise"')
+                  }
+                ])
+              }
+            ]
+          };
+
+          module.webpackOutputPath = 'outputPath';
+          fsExtraMock.pathExists.yields(null, false);
+          fsExtraMock.copy.yields();
+          packagerMock.getProdDependencies.returns(BbPromise.resolve(dependencyGraph));
+          packagerMock.install.returns(BbPromise.resolve());
+          packagerMock.prune.returns(BbPromise.resolve());
+          packagerMock.runScripts.returns(BbPromise.resolve());
+          module.compileStats = peerDepStats;
+          return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+            BbPromise.all([
+              // The module package JSON and the composite one should have been stored
+              expect(writeFileSyncStub).to.have.been.calledTwice,
+              expect(writeFileSyncStub.firstCall.args[1]).to.equal(
+                JSON.stringify(expectedCompositePackageJSON, null, 2)
+              ),
+              expect(writeFileSyncStub.secondCall.args[1]).to.equal(JSON.stringify(expectedPackageJSON, null, 2)),
+              // The modules should have been copied
+              expect(fsExtraMock.copy).to.have.been.calledOnce,
+              // npm ls and npm prune should have been called
+              expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
+              expect(packagerMock.install).to.have.been.calledOnce,
+              expect(packagerMock.prune).to.have.been.calledOnce,
+              expect(packagerMock.runScripts).to.have.been.calledOnce
+            ])
+          );
+        });
+      });
+    });
+
+    describe('transitive dependencies', () => {
       before(() => {
-        const peerDepPackageJson = require('./data/package-peerdeps.json');
+        const transitivePackageJson = require('./data/package-transitive.json');
         mockery.deregisterMock(path.join(process.cwd(), 'package.json'));
-        mockery.registerMock(path.join(process.cwd(), 'package.json'), peerDepPackageJson);
-        // Mock request-promise package.json
-        const rpPackageJson = require('./data/rp-package.json');
-        const rpPackagePath = path.join(
-          process.cwd(),
-          'node_modules',
-          'request-promise',
-          'package.json'
-        );
-        mockery.registerMock(rpPackagePath, rpPackageJson);
+        mockery.registerMock(path.join(process.cwd(), 'package.json'), transitivePackageJson);
       });
 
       after(() => {
         mockery.deregisterMock(path.join(process.cwd(), 'package.json'));
         mockery.registerMock(path.join(process.cwd(), 'package.json'), packageMock);
-        const rpPackagePath = path.join(
-          process.cwd(),
-          'node_modules',
-          'request-promise',
-          'package.json'
-        );
-        mockery.deregisterMock(rpPackagePath);
       });
 
-      it('should install external peer dependencies', () => {
+      it('should install transitive dependencies', () => {
         const expectedCompositePackageJSON = {
           name: 'test-service',
           version: '1.0.0',
@@ -1118,9 +1321,7 @@ describe('packExternalModules', () => {
           private: true,
           scripts: {},
           dependencies: {
-            bluebird: '^3.5.0',
-            'request-promise': '^4.2.1',
-            request: '^2.82.0'
+            classnames: '2.2.6'
           }
         };
         const expectedPackageJSON = {
@@ -1130,43 +1331,27 @@ describe('packExternalModules', () => {
           private: true,
           scripts: {},
           dependencies: {
-            bluebird: '^3.5.0',
-            'request-promise': '^4.2.1',
-            request: '^2.82.0'
+            classnames: '2.2.6'
           }
         };
 
-        const dependencyGraph = require('./data/npm-ls-peerdeps.json');
-        const peerDepStats = {
+        const dependencyGraph = {
+          problems: [],
+          dependencies: {
+            'comp-b': { version: '1.0.0', dependencies: {} },
+            'comp-c': { version: '1.0.0', dependencies: {} },
+            classnames: { version: '2.2.6', dependencies: {} }
+          }
+        };
+
+        const transitiveDepStats = {
           stats: [
             {
-              compilation: {
-                chunks: [
-                  new ChunkMock([
-                    {
-                      identifier: _.constant('"crypto"')
-                    },
-                    {
-                      identifier: _.constant('"uuid/v4"')
-                    },
-                    {
-                      identifier: _.constant('"mockery"')
-                    },
-                    {
-                      identifier: _.constant('"@scoped/vendor/module1"')
-                    },
-                    {
-                      identifier: _.constant('external "bluebird"')
-                    },
-                    {
-                      identifier: _.constant('external "request-promise"')
-                    }
-                  ])
-                ],
-                compiler: {
-                  outputPath: '/my/Service/Path/.webpack/service'
+              compilation: new WebpackCompilationMock([
+                {
+                  identifier: _.constant('external "classnames"')
                 }
-              }
+              ])
             }
           ]
         };
@@ -1178,9 +1363,9 @@ describe('packExternalModules', () => {
         packagerMock.install.returns(BbPromise.resolve());
         packagerMock.prune.returns(BbPromise.resolve());
         packagerMock.runScripts.returns(BbPromise.resolve());
-        module.compileStats = peerDepStats;
-        return expect(module.packExternalModules()).to.be.fulfilled
-          .then(() => BbPromise.all([
+        module.compileStats = transitiveDepStats;
+        return expect(module.packExternalModules()).to.be.fulfilled.then(() =>
+          BbPromise.all([
             // The module package JSON and the composite one should have been stored
             expect(writeFileSyncStub).to.have.been.calledTwice,
             expect(writeFileSyncStub.firstCall.args[1]).to.equal(JSON.stringify(expectedCompositePackageJSON, null, 2)),
@@ -1191,10 +1376,10 @@ describe('packExternalModules', () => {
             expect(packagerMock.getProdDependencies).to.have.been.calledOnce,
             expect(packagerMock.install).to.have.been.calledOnce,
             expect(packagerMock.prune).to.have.been.calledOnce,
-            expect(packagerMock.runScripts).to.have.been.calledOnce,
-          ]));
+            expect(packagerMock.runScripts).to.have.been.calledOnce
+          ])
+        );
       });
     });
   });
 });
-

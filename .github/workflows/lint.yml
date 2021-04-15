@@ -1,0 +1,30 @@
+name: Linter
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - release/*
+
+jobs:
+  eslint:
+    runs-on: ubuntu-20.04
+    name: ESLint
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: "Install Node.js"
+        uses: actions/setup-node@v2
+        with:
+          node-version: "12"
+
+      - name: "Install dependencies"
+        run: npm ci
+
+      - name: "Lint files"
+        run: "npm run eslint"

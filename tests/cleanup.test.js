@@ -6,6 +6,7 @@ const chai = require('chai');
 const sinon = require('sinon');
 const mockery = require('mockery');
 const Serverless = require('serverless');
+const Configuration = require('../lib/Configuration');
 
 chai.use(require('chai-as-promised'));
 chai.use(require('sinon-chai'));
@@ -14,7 +15,7 @@ const expect = chai.expect;
 
 const FseMock = sandbox => ({
   copy: sandbox.stub(),
-  removeSync: sandbox.stub()
+  remove: sandbox.stub()
 });
 
 describe('cleanup', () => {
@@ -47,61 +48,105 @@ describe('cleanup', () => {
     serverless = new Serverless();
     serverless.cli = {
       log: sandbox.stub(),
+      error: sandbox.stub(),
       consoleLog: sandbox.stub()
     };
     dirExistsSyncStub = sandbox.stub(serverless.utils, 'dirExistsSync');
 
-    module = _.assign({
-      serverless,
-      options: {},
-      webpackOutputPath: 'my/Output/Path',
-      configuration: {}
-    }, baseModule);
+    module = _.assign(
+      {
+        serverless,
+        options: {
+          verbose: true
+        },
+        webpackOutputPath: 'my/Output/Path',
+        configuration: new Configuration()
+      },
+      baseModule
+    );
   });
 
   afterEach(() => {
     // This will reset the webpackMock too
     sandbox.restore();
+    fseMock.remove.reset();
+    serverless.cli.log.reset();
   });
 
   it('should remove output dir if it exists', () => {
     dirExistsSyncStub.returns(true);
-    fseMock.removeSync.reset();
+    fseMock.remove.resolves(true);
 
-    return expect(module.cleanup()).to.be.fulfilled
-    .then(() => {
+    return expect(module.cleanup()).to.be.fulfilled.then(() => {
       expect(dirExistsSyncStub).to.have.been.calledOnce;
       expect(dirExistsSyncStub).to.have.been.calledWith('my/Output/Path');
-      expect(fseMock.removeSync).to.have.been.calledOnce;
+      expect(fseMock.remove).to.have.been.calledOnce;
+      expect(serverless.cli.log).to.have.been.calledWith('Removing my/Output/Path done');
       return null;
     });
   });
 
-  it('should not call removeSync if output dir does not exists', () => {
-    dirExistsSyncStub.returns(false);
-    fseMock.removeSync.reset();
+  it('should log nothing is verbose is false', () => {
+    dirExistsSyncStub.returns(true);
+    fseMock.remove.resolves(true);
 
-    return expect(module.cleanup()).to.be.fulfilled
-    .then(() => {
+    module = _.assign({}, module, { options: { verbose: false } });
+
+    return expect(module.cleanup()).to.be.fulfilled.then(() => {
       expect(dirExistsSyncStub).to.have.been.calledOnce;
       expect(dirExistsSyncStub).to.have.been.calledWith('my/Output/Path');
-      expect(fseMock.removeSync).to.not.have.been.called;
+      expect(fseMock.remove).to.have.been.calledOnce;
+      expect(serverless.cli.log).not.to.have.been.called;
+      return null;
+    });
+  });
+
+  it('should log an error if it occurs', () => {
+    dirExistsSyncStub.returns(true);
+    fseMock.remove.rejects('remove error');
+
+    return expect(module.cleanup()).to.be.fulfilled.then(() => {
+      expect(serverless.cli.log).to.have.been.calledWith('Error occurred while removing my/Output/Path: remove error');
+
+      return null;
+    });
+  });
+
+  it('should not call remove if output dir does not exists', () => {
+    dirExistsSyncStub.returns(false);
+
+    return expect(module.cleanup()).to.be.fulfilled.then(() => {
+      expect(dirExistsSyncStub).to.have.been.calledOnce;
+      expect(dirExistsSyncStub).to.have.been.calledWith('my/Output/Path');
+      expect(fseMock.remove).to.not.have.been.called;
       return null;
     });
   });
 
   it('should keep output dir if keepOutputDir = true', () => {
     dirExistsSyncStub.returns(true);
-    fseMock.removeSync.reset();
 
     const configuredModule = _.assign({}, module, {
-      configuration: { keepOutputDirectory: true }
+      keepOutputDirectory: true
     });
-    return expect(configuredModule.cleanup()).to.be.fulfilled
-    .then(() => {
+    return expect(configuredModule.cleanup()).to.be.fulfilled.then(() => {
       expect(dirExistsSyncStub).to.not.have.been.calledOnce;
-      expect(fseMock.removeSync).to.not.have.been.called;
+      expect(fseMock.remove).to.not.have.been.called;
       return null;
     });
-  })
+  });
+
+  it('should keep output dir if keepOutputDir = true in configuration', () => {
+    dirExistsSyncStub.returns(true);
+
+    const configuredModule = _.assign({}, module, {
+      configuration: new Configuration({ webpack: { keepOutputDirectory: true } })
+    });
+
+    return expect(configuredModule.cleanup()).to.be.fulfilled.then(() => {
+      expect(dirExistsSyncStub).to.not.have.been.calledOnce;
+      expect(fseMock.remove).to.not.have.been.called;
+      return null;
+    });
+  });
 });

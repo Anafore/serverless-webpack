@@ -10,13 +10,10 @@ extends:
   - plugin:promise/recommended
   - plugin:import/errors
   - plugin:import/warnings
-  - prettier
-parser: babel-eslint
+parser: "@babel/eslint-parser"
 parserOptions:
+  requireConfigFile: false
   sourceType: module
-  ecmaFeatures:
-    classes: true
-    experimentalObjectRestSpread: true
 plugins:
   - promise
   - lodash
@@ -49,3 +46,4 @@ rules:
   lodash/preferred-alias: off
   lodash/prop-shorthand: off
   lodash/prefer-lodash-method: [ error, { ignoreObjects: [ BbPromise, path ] } ]
+  max-len: [ error, { code: 120, ignoreStrings: true, ignoreComments: true, ignoreTemplateLiterals: true } ]
